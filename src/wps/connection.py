@@ -112,16 +112,11 @@ class Initialize:
         if args.null_pin:
             pin = '00000000'
         elif pin is None:
-            if args.pixie_dust:
+            if args.pixie_dust or args.auto_pixie:
                 try:
                     filename = f'''{pixiewps_dir}{bssid.replace(':', '').upper()}.run'''
-
                     with open(filename, 'r', encoding='utf-8') as file:
-                        t_pin = file.readline().strip()
-                        if input(f'[?] Use previously calculated PIN {t_pin}? [n/Y] ').lower() != 'n':
-                            pin = t_pin
-                        else:
-                            raise FileNotFoundError
+                        pin = file.readline().strip()
                 except FileNotFoundError:
                     pin = generator.getLikely(bssid) or '12345670'
             elif not pbc_mode:

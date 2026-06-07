@@ -17,15 +17,20 @@ This is an improved version of the original OneShot
  - Improved Android support
  - Many new command arguments and features
  - Works on modern python versions (`>3.10`)
+ - Rich terminal UI with colored tables and progress bars
+ - One-shot Termux installation script (`install.sh`)
+ - Auto-scan and mass Pixie Dust attack mode (`-A`)
 
 ## Features
  - PIN/Null PIN and Push button connection
  - [Pixie Dust attack](https://forums.kali.org/showthread.php?24286-WPS-Pixie-Dust-Attack-Offline-WPS-Attack)
  - [Online WPS bruteforce](https://sviehb.files.wordpress.com/2011/12/viehboeck_wps.pdf)
  - Offline WPS PIN generating algorithm
- - Wi-Fi scanner with highlighting based on iw;
+ - Rich-formatted Wi-Fi scanner with highlighting based on `iw`
  - Ability to save the AP to network manager
  - Ability to write to a file
+ - **Auto Pixie Dust attack** (`-A`) — scan all WPS networks and attack each automatically, saving results to `cracked.txt`
+ - One-shot Termux installer (`install.sh`)
 
 ## Usage
 ```
@@ -41,6 +46,7 @@ Attack Modes:
   -B, --bruteforce      Run online bruteforce attack
   --pbc, --push-button-connect
                         Run WPS push button connection
+  -A, --auto-pixie      Auto-scan all WPS networks and attack each with Pixie Dust
 
 Optional arguments:
   -k, --kill            Automatically kill processes interfering with the wireless interface
@@ -68,22 +74,32 @@ Advanced Arguments:
 ```
 
 ## Installing pre-requisites
-**On Termux:**
+**On Termux (one-shot install):**
+ ```shell
+ curl -sSL https://raw.githubusercontent.com/ar5hil/OneShot-Extended/master/install.sh | bash
+ ```
+
+**Or manually on Termux:**
  ```shell
  pkg install -y root-repo
  pkg install -y git tsu python wpa-supplicant pixiewps iw openssl iproute2
+ pip install rich
+ git clone https://github.com/ar5hil/OneShot-Extended ose
+ cd ose
+ ln -sf $(pwd)/ose.py $PREFIX/bin/ose
  ```
 
-**On Linux distributions. Install these packages through your package manager:**
+ **On Linux distributions. Install these packages through your package manager:**
  ```shell
  python3 wpa-supplicant iw wget pixiewps iproute2
+ pip install rich
  ```
 
 ## Updating/Downloading
 **Downloading the source:**
  ```shell
  cd ~
- git clone https://github.com/chickendrop89/OneShot-Extended ose
+ git clone https://github.com/ar5hil/OneShot-Extended ose
  ```
 
 **Updating the source after a recent commit:**
@@ -99,9 +115,24 @@ Advanced Arguments:
  sudo python ose.py -i wlan0 -P
  ```
 
-**Pixie Dust attack:**
+**Online bruteforce attack:**
  ```shell
  sudo python ose.py -i wlan0 -B
+ ```
+
+**Auto Pixie Dust attack (scan all + attack all):**
+ ```shell
+ sudo python ose.py -i wlan0 -A
+ ```
+
+**Auto Pixie Dust with force mode:**
+ ```shell
+ sudo python ose.py -i wlan0 -A -F
+ ```
+
+**On Termux (with tsu):**
+ ```shell
+ tsu -- ose -i wlan0 -A
  ```
 
 ## Troubleshooting

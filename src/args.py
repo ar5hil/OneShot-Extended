@@ -69,6 +69,11 @@ Copyright (C) 2026 chickendrop89
         action='store_true',
         help='Run WPS push button connection'
     )
+    attack_pin_group.add_argument(
+        '-A', '--auto-pixie',
+        action='store_true',
+        help='Auto-scan all WPS networks and attack each with Pixie Dust'
+    )
 
     opt_group = parser.add_argument_group('Optional arguments')
     opt_group.add_argument(
@@ -164,8 +169,11 @@ Copyright (C) 2026 chickendrop89
 
     args = parser.parse_args()
 
-    if (args.pixie_force or args.show_pixie) and not args.pixie_dust:
-        parser.error('argument -F/--pixie-force and -S/--show-pixie can only be used with -P/--pixie-dust')
+    if (args.pixie_force or args.show_pixie) and not (args.pixie_dust or args.auto_pixie):
+        parser.error('argument -F/--pixie-force and -S/--show-pixie can only be used with -P/--pixie-dust or -A/--auto-pixie')
+
+    if args.auto_pixie and args.bssid:
+        parser.error('argument -A/--auto-pixie cannot be used with -b/--bssid (auto mode scans all networks)')
 
     if args.delay and not args.bruteforce:
         parser.error('argument -d/--delay can only be used with -B/--bruteforce')
